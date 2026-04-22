@@ -135,3 +135,100 @@ def get_workspace_status(workspace_id: str, container_path: Optional[str] = None
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def update_workspace(workspace_id: str, name: str, description: str = "",
+                     container_path: Optional[str] = None,
+                     dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Update a workspace name/description."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        wp = workspace_path(cp, workspace_id)
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"workspace": wp, "name": name, "description": description},
+                "next_step": "Pass dry_run=False to update this workspace.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.put(wp, json_data={"name": name, "description": description})
+        if "error" in result:
+            return result
+        audit_log("update_workspace", cp, {"workspace_id": workspace_id, "name": name}, user_id or "", dry_run)
+        return {"path": result.get("path"), "name": result.get("name"), "updated": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def quick_preview_workspace(workspace_id: str, container_path: Optional[str] = None,
+                             user_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Generate a quick preview of the workspace — compiles and validates all entities
+    without creating a version. Returns compilation status and any errors.
+    """
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        wp = workspace_path(cp, workspace_id)
+        client = get_gtm_client(user_id)
+        result = client.post(f"{wp}:quick_preview")
+        if "error" in result:
+            return result
+        qp = result.get("quickPreview", result)
+        status = qp.get("compilationStatus", result.get("compilationStatus", {}))
+        return {
+            "workspace_path": wp,
+            "compilation_status": status,
+            "errors": qp.get("compilerError", []),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def sync_workspace(workspace_id: str, container_path: Optional[str] = None,
+                   user_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Sync a workspace with the latest container version.
+    Updates workspace entities to match the current published container.
+    Returns sync status including any merge conflicts.
+    """
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        wp = workspace_path(cp, workspace_id)
+        client = get_gtm_client(user_id)
+        result = client.post(f"{wp}:sync")
+        if "error" in result:
+            return result
+        sync = result.get("syncStatus", result)
+        return {
+            "workspace_path": wp,
+            "sync_status":    sync,
+            "merge_conflict": result.get("mergeConflict", []),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def resolve_conflict_workspace(workspace_id: str, entity: dict,
+                                container_path: Optional[str] = None,
+                                dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Resolve a merge conflict in a workspace.
+    entity: GTM entity resource (tag, trigger, or variable) to use as the resolved state.
+    """
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        wp = workspace_path(cp, workspace_id)
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"workspace": wp, "entity": entity},
+                "next_step": "Pass dry_run=False to resolve this conflict.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.post(f"{wp}:resolve_conflict", json_data={"entity": entity})
+        if "error" in result:
+            return result
+        audit_log("resolve_conflict", cp, {"workspace_id": workspace_id}, user_id or "", dry_run)
+        return {"workspace_path": wp, "resolved": True}
+    except Exception as e:
+        return {"error": str(e)}

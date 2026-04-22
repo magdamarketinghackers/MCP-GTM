@@ -160,3 +160,28 @@ def delete_variable(workspace_id: str, variable_id: str, container_path: Optiona
         return {"variable_id": variable_id, "deleted": True}
     except Exception as e:
         return {"error": str(e)}
+
+
+def revert_variable(workspace_id: str, variable_id: str, container_path: Optional[str] = None,
+                    fingerprint: Optional[str] = None, dry_run: bool = True,
+                    user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Revert a variable in a workspace to the state in the published container version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        path = f"{_vars_path(cp, workspace_id)}/{variable_id}:revert"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"variable_path": f"{_vars_path(cp, workspace_id)}/{variable_id}", "action": "revert"},
+                "next_step": "Pass dry_run=False to revert this variable.",
+            }
+        client = get_gtm_client(user_id)
+        params = {"fingerprint": fingerprint} if fingerprint else None
+        result = client.post(path, params=params)
+        if "error" in result:
+            return result
+        audit_log("revert_variable", cp, {"variable_id": variable_id}, user_id or "", dry_run)
+        variable = result.get("variable", result)
+        return {"variableId": variable.get("variableId"), "name": variable.get("name"), "reverted": True}
+    except Exception as e:
+        return {"error": str(e)}

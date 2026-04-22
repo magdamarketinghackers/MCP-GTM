@@ -78,6 +78,29 @@ def enable_builtin_variables(workspace_id: str, types: List[str],
         return {"error": str(e)}
 
 
+def revert_builtin_variable(workspace_id: str, variable_type: str,
+                             container_path: Optional[str] = None,
+                             dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Revert a built-in variable to its state in the published container version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        path = f"{_builtins_path(cp, workspace_id)}:revert"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"workspace": workspace_path(cp, workspace_id), "type": variable_type, "action": "revert"},
+                "next_step": "Pass dry_run=False to revert this built-in variable.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.post(path, params={"type": variable_type})
+        if "error" in result:
+            return result
+        audit_log("revert_builtin_variable", cp, {"type": variable_type}, user_id or "", dry_run)
+        return {"type": variable_type, "reverted": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def disable_builtin_variables(workspace_id: str, types: List[str],
                                container_path: Optional[str] = None,
                                dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:

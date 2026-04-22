@@ -171,3 +171,117 @@ def publish_version(version_id: str, container_path: Optional[str] = None,
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_latest_version_header(container_path: Optional[str] = None,
+                               user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Get the header (summary) of the latest container version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        client = get_gtm_client(user_id)
+        result = client.get(f"{cp}/version_headers:latest")
+        if "error" in result:
+            return result
+        return {
+            "containerVersionId": result.get("containerVersionId"),
+            "name":               result.get("name"),
+            "description":        result.get("description", ""),
+            "numTags":            result.get("numTags"),
+            "numTriggers":        result.get("numTriggers"),
+            "numVariables":       result.get("numVariables"),
+            "path":               result.get("path"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def update_version(version_id: str, name: str, description: str = "",
+                   container_path: Optional[str] = None,
+                   dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Update a container version's name and description."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        vp = f"{cp}/versions/{version_id}"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"version_path": vp, "name": name, "description": description},
+                "next_step": "Pass dry_run=False to update this version.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.put(vp, json_data={"name": name, "description": description})
+        if "error" in result:
+            return result
+        audit_log("update_version", cp, {"version_id": version_id, "name": name}, user_id or "", dry_run)
+        cv = result.get("containerVersion", result)
+        return {"containerVersionId": cv.get("containerVersionId"), "name": cv.get("name"), "updated": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def delete_version(version_id: str, container_path: Optional[str] = None,
+                   dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Delete a container version. Cannot delete a published (live) version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        vp = f"{cp}/versions/{version_id}"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"version_path": vp, "action": "delete"},
+                "next_step": "Pass dry_run=False to delete this version.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.delete(vp)
+        if "error" in result:
+            return result
+        audit_log("delete_version", cp, {"version_id": version_id}, user_id or "", dry_run)
+        return {"version_id": version_id, "deleted": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def set_latest_version(version_id: str, container_path: Optional[str] = None,
+                       dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Set a version as the 'latest' version (the one workspaces sync against)."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        vp = f"{cp}/versions/{version_id}:set_latest"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"version_id": version_id, "action": "set_latest"},
+                "next_step": "Pass dry_run=False to set this version as latest.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.post(vp)
+        if "error" in result:
+            return result
+        audit_log("set_latest_version", cp, {"version_id": version_id}, user_id or "", dry_run)
+        cv = result.get("containerVersion", result)
+        return {"containerVersionId": cv.get("containerVersionId"), "set_as_latest": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def undelete_version(version_id: str, container_path: Optional[str] = None,
+                     dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Restore a previously deleted container version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        vp = f"{cp}/versions/{version_id}:undelete"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"version_id": version_id, "action": "undelete"},
+                "next_step": "Pass dry_run=False to restore this version.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.post(vp)
+        if "error" in result:
+            return result
+        audit_log("undelete_version", cp, {"version_id": version_id}, user_id or "", dry_run)
+        cv = result.get("containerVersion", result)
+        return {"containerVersionId": cv.get("containerVersionId"), "restored": True}
+    except Exception as e:
+        return {"error": str(e)}

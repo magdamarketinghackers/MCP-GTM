@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from gtm_client import get_gtm_client, get_active_user_id
 from token_store import get_token_store
+from audit import audit_log
 
 
 def list_accounts(user_id: Optional[str] = None) -> Dict[str, Any]:
@@ -124,5 +125,130 @@ def discover_containers(user_id: Optional[str] = None) -> Dict[str, Any]:
                 for c in all_containers
             ],
         }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_account(account_path: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Get details for a single GTM account."""
+    try:
+        client = get_gtm_client(user_id)
+        result = client.get(account_path.strip("/"))
+        if "error" in result:
+            return result
+        return {
+            "path":      result.get("path"),
+            "accountId": result.get("accountId"),
+            "name":      result.get("name"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def update_account(account_path: str, name: str, dry_run: bool = True,
+                   user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Update a GTM account name."""
+    try:
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"account_path": account_path, "name": name},
+                "next_step": "Pass dry_run=False to update this account.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.put(account_path.strip("/"), json_data={"name": name})
+        if "error" in result:
+            return result
+        audit_log("update_account", account_path, {"name": name}, user_id or "", dry_run)
+        return {"path": result.get("path"), "name": result.get("name"), "updated": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def create_container(account_path: str, name: str, usage_context: List[str],
+                     dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Create a new GTM container.
+    usage_context: list of strings, e.g. ['web'], ['android'], ['ios'], ['amp'], ['server']
+    """
+    try:
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"account_path": account_path, "name": name, "usageContext": usage_context},
+                "next_step": "Pass dry_run=False to create this container.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.post(f"{account_path.strip('/')}/containers",
+                             json_data={"name": name, "usageContext": usage_context})
+        if "error" in result:
+            return result
+        audit_log("create_container", account_path, {"name": name}, user_id or "", dry_run)
+        return {
+            "path":        result.get("path"),
+            "containerId": result.get("containerId"),
+            "name":        result.get("name"),
+            "publicId":    result.get("publicId"),
+            "created":     True,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def update_container(container_path: str, name: str, usage_context: Optional[List[str]] = None,
+                     dry_run: bool = True, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Update a GTM container name (and optionally usage context)."""
+    try:
+        body: Dict[str, Any] = {"name": name}
+        if usage_context:
+            body["usageContext"] = usage_context
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"container_path": container_path, **body},
+                "next_step": "Pass dry_run=False to update this container.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.put(container_path.strip("/"), json_data=body)
+        if "error" in result:
+            return result
+        audit_log("update_container", container_path, body, user_id or "", dry_run)
+        return {"path": result.get("path"), "name": result.get("name"), "updated": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def delete_container(container_path: str, dry_run: bool = True,
+                     user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Delete a GTM container. WARNING: irreversible. dry_run=True by default."""
+    try:
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"container_path": container_path, "action": "delete"},
+                "warning": "This permanently deletes the container and ALL its contents.",
+                "next_step": "Pass dry_run=False to delete this container.",
+            }
+        client = get_gtm_client(user_id)
+        result = client.delete(container_path.strip("/"))
+        if "error" in result:
+            return result
+        audit_log("delete_container", container_path, {}, user_id or "", dry_run)
+        return {"container_path": container_path, "deleted": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_container_snippet(container_path: Optional[str] = None,
+                           user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Get the GTM container snippet (JavaScript/noscript code to embed on your site)."""
+    try:
+        from tools._helpers import resolve_container_path
+        cp = resolve_container_path(container_path, user_id)
+        client = get_gtm_client(user_id)
+        result = client.get(f"{cp}:snippet")
+        if "error" in result:
+            return result
+        return {"container_path": cp, "snippet": result}
     except Exception as e:
         return {"error": str(e)}

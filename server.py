@@ -69,6 +69,18 @@ def _builtins():
 def _versions():
     from tools import versions; return versions
 
+def _environments():
+    from tools import environments; return environments
+
+def _folders():
+    from tools import folders; return folders
+
+def _permissions():
+    from tools import permissions; return permissions
+
+def _gtag_config():
+    from tools import gtag_config; return gtag_config
+
 # ── Tool schema helpers ────────────────────────────────────────────────────────
 _STR  = {"type": "string"}
 _INT  = {"type": "integer"}
@@ -109,10 +121,25 @@ ALL_TOOLS = [
 
     # ── Accounts & Containers ──────────────────────────────────────────────
     _t("list_accounts",      "List all GTM accounts accessible to the user", {**_UID}),
+    _t("get_account",        "Get details for a specific GTM account",
+       {"account_path": _STR, **_UID}, ["account_path"]),
+    _t("update_account",     "Update a GTM account name. dry_run=True by default.",
+       {"account_path": _STR, "name": _STR, **_DR, **_UID}, ["account_path", "name"]),
     _t("list_containers",    "List containers in a GTM account",
        {"account_path": _STR, **_UID}, ["account_path"]),
     _t("get_container",      "Get details for a specific container",
        {"container_path": _STR, **_UID}, ["container_path"]),
+    _t("create_container",   "Create a new GTM container. usage_context e.g. ['web'], ['server']. dry_run=True by default.",
+       {"account_path": _STR, "name": _STR, "usage_context": {"type": "array", "items": {"type": "string"}},
+        **_DR, **_UID}, ["account_path", "name", "usage_context"]),
+    _t("update_container",   "Update a container name/usage context. dry_run=True by default.",
+       {"container_path": _STR, "name": _STR,
+        "usage_context": {"type": "array", "items": {"type": "string"}}, **_DR, **_UID},
+       ["container_path", "name"]),
+    _t("delete_container",   "Delete a container permanently. dry_run=True by default. WARNING: irreversible.",
+       {"container_path": _STR, **_DR, **_UID}, ["container_path"]),
+    _t("get_container_snippet", "Get the GTM snippet code (JS/noscript) to embed on your site",
+       {**_CP, **_UID}),
     _t("discover_containers", "Fetch all GTM accounts and containers, save to store, set first as active",
        {**_UID}),
 
@@ -127,6 +154,14 @@ ALL_TOOLS = [
        {**_WID, **_CP, **_DR, **_UID}, ["workspace_id"]),
     _t("get_workspace_status", "List all pending (uncommitted) changes in a workspace",
        {**_WID, **_CP, **_UID}, ["workspace_id"]),
+    _t("update_workspace",     "Rename a workspace or update its description. dry_run=True by default.",
+       {"name": _STR, "description": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "name"]),
+    _t("quick_preview_workspace", "Compile and validate workspace entities without creating a version",
+       {**_WID, **_CP, **_UID}, ["workspace_id"]),
+    _t("sync_workspace",       "Sync workspace with the latest container version; returns merge conflicts if any",
+       {**_WID, **_CP, **_UID}, ["workspace_id"]),
+    _t("resolve_conflict_workspace", "Resolve a merge conflict in a workspace. entity = GTM resource to use as resolved state. dry_run=True by default.",
+       {"entity": _OBJ, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "entity"]),
 
     # ── Tags ───────────────────────────────────────────────────────────────
     _t("list_tags",   "List all tags in a workspace",
@@ -140,6 +175,8 @@ ALL_TOOLS = [
        ["workspace_id", "tag_id", "body"]),
     _t("delete_tag",  "Delete a tag. dry_run=True by default.",
        {"tag_id": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "tag_id"]),
+    _t("revert_tag",  "Revert a tag to its state in the published container version. dry_run=True by default.",
+       {"tag_id": _STR, "fingerprint": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "tag_id"]),
 
     # ── Triggers ───────────────────────────────────────────────────────────
     _t("list_triggers",   "List all triggers in a workspace",
@@ -153,6 +190,8 @@ ALL_TOOLS = [
        ["workspace_id", "trigger_id", "body"]),
     _t("delete_trigger",  "Delete a trigger. dry_run=True by default.",
        {"trigger_id": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "trigger_id"]),
+    _t("revert_trigger",  "Revert a trigger to its state in the published container version. dry_run=True by default.",
+       {"trigger_id": _STR, "fingerprint": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "trigger_id"]),
 
     # ── Variables ──────────────────────────────────────────────────────────
     _t("list_variables",   "List all custom variables in a workspace",
@@ -166,6 +205,8 @@ ALL_TOOLS = [
        ["workspace_id", "variable_id", "body"]),
     _t("delete_variable",  "Delete a variable. dry_run=True by default.",
        {"variable_id": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "variable_id"]),
+    _t("revert_variable",  "Revert a variable to its state in the published container version. dry_run=True by default.",
+       {"variable_id": _STR, "fingerprint": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "variable_id"]),
 
     # ── Built-in Variables ─────────────────────────────────────────────────
     _t("list_builtin_variables",    "List all enabled built-in variables in a workspace",
@@ -176,6 +217,8 @@ ALL_TOOLS = [
     _t("disable_builtin_variables", "Disable built-in variables. types = list of type strings. dry_run=True by default.",
        {"types": {"type": "array", "items": {"type": "string"}}, **_WID, **_CP, **_DR, **_UID},
        ["workspace_id", "types"]),
+    _t("revert_builtin_variable",   "Revert a built-in variable to its published state. variable_type = type string. dry_run=True by default.",
+       {"variable_type": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "variable_type"]),
 
     # ── Versions ───────────────────────────────────────────────────────────
     _t("list_version_headers", "List version summaries for a container",
@@ -188,6 +231,73 @@ ALL_TOOLS = [
        {"name": _STR, "notes": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "name"]),
     _t("publish_version",      "Publish a version to production (LIVE). dry_run=True by default. WARNING: immediately affects live container.",
        {"version_id": _STR, "fingerprint": _STR, **_CP, **_DR, **_UID}, ["version_id"]),
+    _t("get_latest_version_header", "Get summary header of the latest container version",
+       {**_CP, **_UID}),
+    _t("update_version",       "Update a version name/description. dry_run=True by default.",
+       {"version_id": _STR, "name": _STR, "notes": _STR, **_CP, **_DR, **_UID}, ["version_id", "name"]),
+    _t("delete_version",       "Delete a container version. dry_run=True by default.",
+       {"version_id": _STR, **_CP, **_DR, **_UID}, ["version_id"]),
+    _t("set_latest_version",   "Set a version as the 'latest' (what workspaces sync against). dry_run=True by default.",
+       {"version_id": _STR, **_CP, **_DR, **_UID}, ["version_id"]),
+    _t("undelete_version",     "Restore a previously deleted container version. dry_run=True by default.",
+       {"version_id": _STR, **_CP, **_DR, **_UID}, ["version_id"]),
+
+    # ── Environments ───────────────────────────────────────────────────────
+    _t("list_environments",       "List all GTM environments (Live, Latest, Draft, custom)",
+       {**_CP, **_UID}),
+    _t("get_environment",         "Get details for a specific environment",
+       {"environment_id": _STR, **_CP, **_UID}, ["environment_id"]),
+    _t("create_environment",      "Create a custom environment. dry_run=True by default.",
+       {"name": _STR, "url": _STR, "description": _STR, "enable_debug": _BOOL, **_CP, **_DR, **_UID}, ["name"]),
+    _t("update_environment",      "Update an environment. body = GTM Environment resource. dry_run=True by default.",
+       {"environment_id": _STR, "body": _OBJ, **_CP, **_DR, **_UID}, ["environment_id", "body"]),
+    _t("delete_environment",      "Delete a custom environment. dry_run=True by default.",
+       {"environment_id": _STR, **_CP, **_DR, **_UID}, ["environment_id"]),
+    _t("reauthorize_environment", "Regenerate the authorization token for an environment. dry_run=True by default.",
+       {"environment_id": _STR, **_CP, **_DR, **_UID}, ["environment_id"]),
+
+    # ── Folders ────────────────────────────────────────────────────────────
+    _t("list_folders",            "List all folders in a workspace",
+       {**_WID, **_CP, **_UID}, ["workspace_id"]),
+    _t("get_folder",              "Get folder details",
+       {"folder_id": _STR, **_WID, **_CP, **_UID}, ["workspace_id", "folder_id"]),
+    _t("create_folder",           "Create a folder in a workspace. dry_run=True by default.",
+       {"name": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "name"]),
+    _t("update_folder",           "Rename a folder. dry_run=True by default.",
+       {"folder_id": _STR, "name": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "folder_id", "name"]),
+    _t("delete_folder",           "Delete a folder (entities inside are NOT deleted). dry_run=True by default.",
+       {"folder_id": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "folder_id"]),
+    _t("list_folder_entities",    "List all tags, triggers and variables in a folder",
+       {"folder_id": _STR, **_WID, **_CP, **_UID}, ["workspace_id", "folder_id"]),
+    _t("move_entities_to_folder", "Move tags/triggers/variables into a folder. dry_run=True by default.",
+       {"folder_id": _STR, "tag_ids": _ARR, "trigger_ids": _ARR, "variable_ids": _ARR,
+        **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "folder_id"]),
+
+    # ── User Permissions ───────────────────────────────────────────────────
+    _t("list_user_permissions",   "List all user permissions for a GTM account",
+       {"account_path": _STR, **_CP, **_UID}),
+    _t("get_user_permission",     "Get a specific user's GTM permissions",
+       {"permission_id": _STR, "account_path": _STR, **_CP, **_UID}, ["permission_id"]),
+    _t("create_user_permission",  "Grant a user access. body = UserPermission resource. dry_run=True by default.",
+       {"body": _OBJ, "account_path": _STR, **_CP, **_DR, **_UID}, ["body"]),
+    _t("update_user_permission",  "Update a user's permissions. dry_run=True by default.",
+       {"permission_id": _STR, "body": _OBJ, "account_path": _STR, **_CP, **_DR, **_UID},
+       ["permission_id", "body"]),
+    _t("delete_user_permission",  "Revoke a user's GTM access. dry_run=True by default.",
+       {"permission_id": _STR, "account_path": _STR, **_CP, **_DR, **_UID}, ["permission_id"]),
+
+    # ── Google Tag Config ──────────────────────────────────────────────────
+    _t("list_gtag_configs",   "List Google Tag configurations in a workspace",
+       {**_WID, **_CP, **_UID}, ["workspace_id"]),
+    _t("get_gtag_config",     "Get a specific Google Tag configuration",
+       {"gtag_config_id": _STR, **_WID, **_CP, **_UID}, ["workspace_id", "gtag_config_id"]),
+    _t("create_gtag_config",  "Create a Google Tag configuration. body = GtagConfig resource. dry_run=True by default.",
+       {"body": _OBJ, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "body"]),
+    _t("update_gtag_config",  "Update a Google Tag configuration. dry_run=True by default.",
+       {"gtag_config_id": _STR, "body": _OBJ, **_WID, **_CP, **_DR, **_UID},
+       ["workspace_id", "gtag_config_id", "body"]),
+    _t("delete_gtag_config",  "Delete a Google Tag configuration. dry_run=True by default.",
+       {"gtag_config_id": _STR, **_WID, **_CP, **_DR, **_UID}, ["workspace_id", "gtag_config_id"]),
 ]
 
 
@@ -269,11 +379,29 @@ async def _dispatch(name: str, a: dict):
     if name == "list_accounts":
         return _accounts().list_accounts(uid)
 
+    if name == "get_account":
+        return _accounts().get_account(a["account_path"], uid)
+
+    if name == "update_account":
+        return _accounts().update_account(a["account_path"], a["name"], dr, uid)
+
     if name == "list_containers":
         return _accounts().list_containers(a["account_path"], uid)
 
     if name == "get_container":
         return _accounts().get_container(a["container_path"], uid)
+
+    if name == "create_container":
+        return _accounts().create_container(a["account_path"], a["name"], a["usage_context"], dr, uid)
+
+    if name == "update_container":
+        return _accounts().update_container(a["container_path"], a["name"], a.get("usage_context"), dr, uid)
+
+    if name == "delete_container":
+        return _accounts().delete_container(a["container_path"], dr, uid)
+
+    if name == "get_container_snippet":
+        return _accounts().get_container_snippet(cp, uid)
 
     if name == "discover_containers":
         result = _accounts().discover_containers(uid)
@@ -302,6 +430,18 @@ async def _dispatch(name: str, a: dict):
     if name == "get_workspace_status":
         return _workspaces().get_workspace_status(wid, cp, uid)
 
+    if name == "update_workspace":
+        return _workspaces().update_workspace(wid, a["name"], a.get("description", ""), cp, dr, uid)
+
+    if name == "quick_preview_workspace":
+        return _workspaces().quick_preview_workspace(wid, cp, uid)
+
+    if name == "sync_workspace":
+        return _workspaces().sync_workspace(wid, cp, uid)
+
+    if name == "resolve_conflict_workspace":
+        return _workspaces().resolve_conflict_workspace(wid, a["entity"], cp, dr, uid)
+
     # ── Tags ───────────────────────────────────────────────────────────────
     if name == "list_tags":
         return _tags().list_tags(wid, cp, uid)
@@ -317,6 +457,9 @@ async def _dispatch(name: str, a: dict):
 
     if name == "delete_tag":
         return _tags().delete_tag(wid, a["tag_id"], cp, dr, uid)
+
+    if name == "revert_tag":
+        return _tags().revert_tag(wid, a["tag_id"], cp, a.get("fingerprint"), dr, uid)
 
     # ── Triggers ───────────────────────────────────────────────────────────
     if name == "list_triggers":
@@ -334,6 +477,9 @@ async def _dispatch(name: str, a: dict):
     if name == "delete_trigger":
         return _triggers().delete_trigger(wid, a["trigger_id"], cp, dr, uid)
 
+    if name == "revert_trigger":
+        return _triggers().revert_trigger(wid, a["trigger_id"], cp, a.get("fingerprint"), dr, uid)
+
     # ── Variables ──────────────────────────────────────────────────────────
     if name == "list_variables":
         return _variables().list_variables(wid, cp, uid)
@@ -350,6 +496,9 @@ async def _dispatch(name: str, a: dict):
     if name == "delete_variable":
         return _variables().delete_variable(wid, a["variable_id"], cp, dr, uid)
 
+    if name == "revert_variable":
+        return _variables().revert_variable(wid, a["variable_id"], cp, a.get("fingerprint"), dr, uid)
+
     # ── Built-in Variables ─────────────────────────────────────────────────
     if name == "list_builtin_variables":
         return _builtins().list_builtin_variables(wid, cp, uid)
@@ -359,6 +508,9 @@ async def _dispatch(name: str, a: dict):
 
     if name == "disable_builtin_variables":
         return _builtins().disable_builtin_variables(wid, a["types"], cp, dr, uid)
+
+    if name == "revert_builtin_variable":
+        return _builtins().revert_builtin_variable(wid, a["variable_type"], cp, dr, uid)
 
     # ── Versions ───────────────────────────────────────────────────────────
     if name == "list_version_headers":
@@ -375,6 +527,96 @@ async def _dispatch(name: str, a: dict):
 
     if name == "publish_version":
         return _versions().publish_version(a["version_id"], cp, a.get("fingerprint"), dr, uid)
+
+    if name == "get_latest_version_header":
+        return _versions().get_latest_version_header(cp, uid)
+
+    if name == "update_version":
+        return _versions().update_version(a["version_id"], a["name"], a.get("notes", ""), cp, dr, uid)
+
+    if name == "delete_version":
+        return _versions().delete_version(a["version_id"], cp, dr, uid)
+
+    if name == "set_latest_version":
+        return _versions().set_latest_version(a["version_id"], cp, dr, uid)
+
+    if name == "undelete_version":
+        return _versions().undelete_version(a["version_id"], cp, dr, uid)
+
+    # ── Environments ───────────────────────────────────────────────────────
+    if name == "list_environments":
+        return _environments().list_environments(cp, uid)
+
+    if name == "get_environment":
+        return _environments().get_environment(a["environment_id"], cp, uid)
+
+    if name == "create_environment":
+        return _environments().create_environment(
+            a["name"], a.get("url"), a.get("description", ""), a.get("enable_debug", False), cp, dr, uid)
+
+    if name == "update_environment":
+        return _environments().update_environment(a["environment_id"], a["body"], cp, dr, uid)
+
+    if name == "delete_environment":
+        return _environments().delete_environment(a["environment_id"], cp, dr, uid)
+
+    if name == "reauthorize_environment":
+        return _environments().reauthorize_environment(a["environment_id"], cp, dr, uid)
+
+    # ── Folders ────────────────────────────────────────────────────────────
+    if name == "list_folders":
+        return _folders().list_folders(wid, cp, uid)
+
+    if name == "get_folder":
+        return _folders().get_folder(wid, a["folder_id"], cp, uid)
+
+    if name == "create_folder":
+        return _folders().create_folder(wid, a["name"], cp, dr, uid)
+
+    if name == "update_folder":
+        return _folders().update_folder(wid, a["folder_id"], a["name"], cp, dr, uid)
+
+    if name == "delete_folder":
+        return _folders().delete_folder(wid, a["folder_id"], cp, dr, uid)
+
+    if name == "list_folder_entities":
+        return _folders().list_folder_entities(wid, a["folder_id"], cp, uid)
+
+    if name == "move_entities_to_folder":
+        return _folders().move_entities_to_folder(
+            wid, a["folder_id"], a.get("tag_ids"), a.get("trigger_ids"), a.get("variable_ids"), cp, dr, uid)
+
+    # ── User Permissions ───────────────────────────────────────────────────
+    if name == "list_user_permissions":
+        return _permissions().list_user_permissions(a.get("account_path"), cp, uid)
+
+    if name == "get_user_permission":
+        return _permissions().get_user_permission(a["permission_id"], a.get("account_path"), cp, uid)
+
+    if name == "create_user_permission":
+        return _permissions().create_user_permission(a["body"], a.get("account_path"), cp, dr, uid)
+
+    if name == "update_user_permission":
+        return _permissions().update_user_permission(a["permission_id"], a["body"], a.get("account_path"), cp, dr, uid)
+
+    if name == "delete_user_permission":
+        return _permissions().delete_user_permission(a["permission_id"], a.get("account_path"), cp, dr, uid)
+
+    # ── Google Tag Config ──────────────────────────────────────────────────
+    if name == "list_gtag_configs":
+        return _gtag_config().list_gtag_configs(wid, cp, uid)
+
+    if name == "get_gtag_config":
+        return _gtag_config().get_gtag_config(wid, a["gtag_config_id"], cp, uid)
+
+    if name == "create_gtag_config":
+        return _gtag_config().create_gtag_config(wid, a["body"], cp, dr, uid)
+
+    if name == "update_gtag_config":
+        return _gtag_config().update_gtag_config(wid, a["gtag_config_id"], a["body"], cp, dr, uid)
+
+    if name == "delete_gtag_config":
+        return _gtag_config().delete_gtag_config(wid, a["gtag_config_id"], cp, dr, uid)
 
     return {"error": f"Unknown tool: {name}"}
 

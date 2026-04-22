@@ -155,3 +155,28 @@ def delete_tag(workspace_id: str, tag_id: str, container_path: Optional[str] = N
         return {"tag_id": tag_id, "deleted": True}
     except Exception as e:
         return {"error": str(e)}
+
+
+def revert_tag(workspace_id: str, tag_id: str, container_path: Optional[str] = None,
+               fingerprint: Optional[str] = None, dry_run: bool = True,
+               user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Revert a tag in a workspace to the state in the published container version."""
+    try:
+        cp = resolve_container_path(container_path, user_id)
+        path = f"{_tags_path(cp, workspace_id)}/{tag_id}:revert"
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": {"tag_path": f"{_tags_path(cp, workspace_id)}/{tag_id}", "action": "revert"},
+                "next_step": "Pass dry_run=False to revert this tag to the published version.",
+            }
+        client = get_gtm_client(user_id)
+        params = {"fingerprint": fingerprint} if fingerprint else None
+        result = client.post(path, params=params)
+        if "error" in result:
+            return result
+        audit_log("revert_tag", cp, {"tag_id": tag_id}, user_id or "", dry_run)
+        tag = result.get("tag", result)
+        return {"tagId": tag.get("tagId"), "name": tag.get("name"), "reverted": True}
+    except Exception as e:
+        return {"error": str(e)}
