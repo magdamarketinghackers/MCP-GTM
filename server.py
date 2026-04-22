@@ -512,27 +512,16 @@ def _build_dashboard() -> str:
     cards = ""
     for uid in users:
         containers = ts.get_containers(uid)
-        active_cp  = ts.get_active_container(uid)
 
         container_rows_html = ""
         for c in containers:
-            c_path    = c.get("path", "")
-            c_name    = c.get("name", c_path)
-            c_pub_id  = c.get("publicId", "")
-            is_active = c_path == active_cp
-            row_style = (f'border-left:3px solid #1a73e8;background:rgba(26,115,232,.04)'
-                         if is_active else 'border-left:3px solid transparent')
-            active_badge = f'&nbsp;{pill("active","#1a73e8","rgba(26,115,232,.1)","rgba(26,115,232,.3)")}' if is_active else ''
+            c_path   = c.get("path", "")
+            c_name   = c.get("name", c_path)
+            c_pub_id = c.get("publicId", "")
             container_rows_html += (
-                f'<div style="display:flex;justify-content:space-between;align-items:center;'
-                f'padding:9px 16px;{row_style}">'
-                f'<div style="display:flex;align-items:center;gap:10px;min-width:0">'
+                f'<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;min-width:0">'
                 f'<span style="font-family:monospace;font-size:11px;color:#7878a8;white-space:nowrap">{c_pub_id}</span>'
                 f'<span style="font-size:13px;color:#d0d0ec">{c_name}</span>'
-                f'{active_badge}'
-                f'</div>'
-                f'<a href="/auth/set-container?user_id={uid}&container_path={c_path}" '
-                f'style="font-size:11px;color:#505080;text-decoration:none;flex-shrink:0;margin-left:12px">Set active</a>'
                 f'</div>'
             )
 
