@@ -909,11 +909,8 @@ _starlette_app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods
 
 
 async def app(scope, receive, send):
-    """Top-level ASGI: /mcp → session_manager (POST/DELETE only), rest → Starlette."""
+    """Top-level ASGI: /mcp → session_manager, rest → Starlette."""
     if scope["type"] == "http" and scope.get("path", "").rstrip("/") == "/mcp":
-        if scope.get("method") == "GET":
-            await Response(status_code=405, headers={"Allow": "POST, DELETE"})(scope, receive, send)
-            return
         await session_manager.handle_request(scope, receive, send)
         return
     await _starlette_app(scope, receive, send)
