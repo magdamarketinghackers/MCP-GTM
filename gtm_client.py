@@ -27,28 +27,27 @@ GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
 # user_id → (access_token, expires_at_unix)
 _token_cache: Dict[str, Tuple[str, float]] = {}
 
-_active_user_id: Optional[str] = None
-
-
 def get_active_user_id() -> str:
-    global _active_user_id
-    if not _active_user_id:
-        stored = get_token_store().get_active_user_id()
-        if stored and stored in get_token_store().list_users():
-            _active_user_id = stored
-        else:
-            users = get_token_store().list_users()
-            if users:
-                _active_user_id = users[0]
-            else:
-                raise ValueError("No user authorized. Visit /auth/start?user_id=<email> to authorize.")
-    return _active_user_id
+    """
+    Return the single authorized user_id, or raise with a listing if 0 or 2+
+    exist. This server keeps NO 'active user' state — every tool call must
+    pass user_id explicitly when more than one user is authorized.
+    """
+    users = get_token_store().list_users()
+    if not users:
+        raise ValueError("No user authorized. Visit /auth/start?user_id=<email> to authorize.")
+    if len(users) > 1:
+        raise ValueError(
+            f"user_id required: multiple users authorized {users}. "
+            f"Pass user_id explicitly to specify which client account to query "
+            f"(call list_users for details). This server keeps no 'active user' state."
+        )
+    return users[0]
 
 
 def set_active_user(user_id: str):
-    global _active_user_id
-    _active_user_id = user_id
-    get_token_store().set_active_user_id(user_id)
+    # Deprecated no-op: active-user persistence removed; pass user_id explicitly.
+    pass
 
 
 def _refresh_access_token(user_id: str) -> str:

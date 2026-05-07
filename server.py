@@ -108,12 +108,7 @@ _WID = {"workspace_id": {"type": "string", "description": "Workspace ID (numeric
 
 ALL_TOOLS = [
     # ── Auth / user management ─────────────────────────────────────────────
-    _t("list_users",           "List all authorized Google users and their GTM containers", {}),
-    _t("get_active_user",      "Show the current active user and active container", {}),
-    _t("set_active_user",      "Set the active user for all operations",
-       {"user_id": _STR}, ["user_id"]),
-    _t("set_active_container", "Set the active GTM container for a user",
-       {"container_path": _STR, **_UID}, ["container_path"]),
+    _t("list_users",           "List all authorized Google users (clients). Always call this first if you don't know which user_id to query — this server keeps no 'active user' state, you must pass user_id explicitly when more than one user is authorized.", {}),
     _t("authorize_user",       "Get the OAuth URL to authorize a new Google user",
        {"user_id": _STR}, ["user_id"]),
     _t("get_audit_log",        "View recent write operations log",
@@ -344,28 +339,6 @@ async def _dispatch(name: str, a: dict):
                 "containers":            len(info["containers"]),
             })
         return {"users": result, "count": len(result)}
-
-    if name == "get_active_user":
-        try:
-            active = get_active_user_id()
-            ts = get_token_store()
-            cp_active = ts.get_active_container(active)
-            return {
-                "active_user":       active,
-                "active_container":  cp_active,
-                "containers":        len(ts.get_containers(active)),
-            }
-        except ValueError as e:
-            return {"error": str(e)}
-
-    if name == "set_active_user":
-        set_active_user(a["user_id"])
-        return {"active_user": a["user_id"]}
-
-    if name == "set_active_container":
-        uid_eff = uid or get_active_user_id()
-        get_token_store().set_active_container(uid_eff, a["container_path"])
-        return {"active_container": a["container_path"], "user": uid_eff}
 
     if name == "authorize_user":
         base = OAUTH_REDIRECT_URI.replace("/auth/callback", "")
@@ -703,23 +676,6 @@ async def auth_delete(request):
     return RedirectResponse(url="/")
 
 
-async def set_user_api(request):
-    user_id = request.query_params.get("user_id")
-    if not user_id:
-        return JSONResponse({"error": "user_id required"}, status_code=400)
-    set_active_user(user_id)
-    return RedirectResponse(url="/")
-
-
-async def set_container_api(request):
-    user_id        = request.query_params.get("user_id")
-    container_path = request.query_params.get("container_path")
-    if not user_id or not container_path:
-        return JSONResponse({"error": "user_id and container_path required"}, status_code=400)
-    get_token_store().set_active_container(user_id, container_path)
-    return RedirectResponse(url="/")
-
-
 # ── Logo ───────────────────────────────────────────────────────────────────────
 
 async def logo(request):
@@ -900,8 +856,6 @@ _starlette_app = Starlette(
         Route("/auth/callback",         endpoint=auth_callback),
         Route("/auth/discover",         endpoint=auth_discover),
         Route("/auth/delete",           endpoint=auth_delete),
-        Route("/auth/set-user",         endpoint=set_user_api),
-        Route("/auth/set-container",    endpoint=set_container_api),
     ],
     lifespan=lifespan,
 )
