@@ -107,15 +107,10 @@ def discover_containers(user_id: Optional[str] = None) -> Dict[str, Any]:
 
         get_token_store().save_containers(uid, all_containers)
 
-        # set first container as active
-        if all_containers:
-            first_path = all_containers[0].get("path", "")
-            get_token_store().set_active_container(uid, first_path)
-
         return {
             "accounts": len(accounts),
             "containers": len(all_containers),
-            "active_container": all_containers[0].get("path") if all_containers else None,
+            "note": "Pass container_path to subsequent tool calls. This server keeps no 'active container' state.",
             "containers_list": [
                 {
                     "path":     c.get("path"),

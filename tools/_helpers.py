@@ -16,17 +16,29 @@ from gtm_client import get_active_user_id
 
 
 def resolve_container_path(container_path: Optional[str], user_id: Optional[str]) -> str:
-    """Return container_path from arg or active container for user."""
+    """
+    Return container_path from the argument, or fall back to the user's single
+    container when exactly one exists. With 0 or 2+ containers, raise with a
+    listing — this server keeps no 'active container' state, so the caller must
+    pass container_path explicitly.
+    """
     if container_path:
         return container_path.strip("/")
     uid = user_id or get_active_user_id()
-    cp = get_token_store().get_active_container(uid)
-    if not cp:
+    containers = get_token_store().get_containers(uid)
+    if not containers:
         raise ValueError(
-            "No active container set. Use set_active_container or pass container_path. "
-            "Run discover_containers first."
+            f"No containers cached for user '{uid}'. Run discover_containers first, "
+            f"then pass container_path explicitly."
         )
-    return cp.strip("/")
+    if len(containers) > 1:
+        paths = [c.get("path", c.get("publicId", "")) for c in containers]
+        raise ValueError(
+            f"container_path required: user '{uid}' has multiple containers {paths}. "
+            f"Pass container_path explicitly (e.g. accounts/X/containers/Y). "
+            f"This server keeps no 'active container' state."
+        )
+    return containers[0].get("path", "").strip("/")
 
 
 def workspace_path(container_path: str, workspace_id: str) -> str:

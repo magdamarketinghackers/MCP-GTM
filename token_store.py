@@ -116,33 +116,17 @@ class TokenStore:
     def get_containers(self, user_id: str) -> List[dict]:
         return self._data.get(user_id, {}).get("containers", [])
 
-    def set_active_container(self, user_id: str, container_path: str):
-        if user_id not in self._data:
-            raise ValueError(f"User {user_id} not found")
-        self._data[user_id]["active_container_path"] = container_path
-        self._save()
-
-    def get_active_container(self, user_id: str) -> Optional[str]:
-        return self._data.get(user_id, {}).get("active_container_path")
-
     def get_user_info(self, user_id: str) -> Dict[str, Any]:
         entry = self._data.get(user_id, {})
         return {
             "user_id": user_id,
             "has_token": bool(entry.get("refresh_token")),
-            "active_container_path": entry.get("active_container_path"),
             "accounts": entry.get("accounts", []),
             "containers": entry.get("containers", []),
         }
 
-    # ── server-wide state ─────────────────────────────────────────────────────
-
-    def set_active_user_id(self, user_id: str):
-        self._meta["active_user_id"] = user_id
-        self._save()
-
-    def get_active_user_id(self) -> Optional[str]:
-        return self._meta.get("active_user_id")
+    # NOTE: No 'active user' or 'active container' state. Tools must pass
+    # user_id and container_path explicitly when more than one is configured.
 
 
 _token_store: Optional[TokenStore] = None

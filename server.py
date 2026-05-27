@@ -333,12 +333,12 @@ async def _dispatch(name: str, a: dict):
         for u in users:
             info = ts.get_user_info(u)
             result.append({
-                "user_id":               u,
-                "has_token":             info["has_token"],
-                "active_container_path": info["active_container_path"],
-                "containers":            len(info["containers"]),
+                "user_id":    u,
+                "has_token":  info["has_token"],
+                "containers": len(info["containers"]),
             })
-        return {"users": result, "count": len(result)}
+        return {"users": result, "count": len(result),
+                "note": "Pass user_id and container_path to subsequent tool calls. This server keeps no 'active user/container' state."}
 
     if name == "authorize_user":
         base = OAUTH_REDIRECT_URI.replace("/auth/callback", "")
@@ -377,15 +377,7 @@ async def _dispatch(name: str, a: dict):
         return _accounts().get_container_snippet(cp, uid)
 
     if name == "discover_containers":
-        result = _accounts().discover_containers(uid)
-        if "error" not in result and uid:
-            set_active_user(uid)
-        elif "error" not in result:
-            try:
-                set_active_user(get_active_user_id())
-            except Exception:
-                pass
-        return result
+        return _accounts().discover_containers(uid)
 
     # ── Workspaces ─────────────────────────────────────────────────────────
     if name == "list_workspaces":
@@ -659,7 +651,6 @@ async def auth_discover(request):
         from tools.accounts import discover_containers
         result = discover_containers(user_id)
         if "error" not in result:
-            set_active_user(user_id)
             logger.info("Discovered %d containers for %s", result.get("containers", 0), user_id)
         else:
             logger.error("discover_containers error: %s", result["error"])
